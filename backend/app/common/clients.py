@@ -37,6 +37,11 @@ def get_minio() -> Minio:
     )
 
 
+def enqueue(func, *args, timeout: int = 1800) -> None:
+    """把任务放进队列，由任务进程执行。"""
+    get_queue().enqueue(func, *args, job_timeout=timeout, result_ttl=600, failure_ttl=86400)
+
+
 def ensure_bucket() -> None:
     """存原始文件的桶不存在时创建。"""
     client, bucket = get_minio(), get_settings().MINIO_BUCKET
@@ -47,4 +52,4 @@ def ensure_bucket() -> None:
 @lru_cache
 def get_milvus() -> MilvusClient:
     s = get_settings()
-    return MilvusClient(uri=s.MILVUS_URI, token=s.MILVUS_TOKEN, timeout=10)
+    return MilvusClient(uri=s.MILVUS_URI, token=s.MILVUS_TOKEN, db_name=s.MILVUS_DB, timeout=30)

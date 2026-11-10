@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     # Milvus
     MILVUS_URI: str = "http://127.0.0.1:8205"
     MILVUS_TOKEN: str = ""
+    MILVUS_DB: str = "default"
 
     # 向量模型（OpenAI 兼容接口）
     EMBEDDING_URL: str = ""

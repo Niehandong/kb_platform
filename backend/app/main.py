@@ -12,6 +12,7 @@ from app.common import clients, health
 from app.common.errors import register_error_handlers
 from app.common.logging import setup_logging
 from app.config import get_settings
+from app.kb import api_documents, api_kb
 
 logger = logging.getLogger(__name__)
 
@@ -44,4 +45,6 @@ app.include_router(health.router, prefix="/api/v1")
 app.include_router(api_auth.router, prefix="/api/v1")
 app.include_router(api_accounts.router, prefix="/api/v1")
 app.include_router(api_groups.router, prefix="/api/v1")
+app.include_router(api_kb.router, prefix="/api/v1")
+app.include_router(api_documents.router, prefix="/api/v1")
 app.include_router(api_open.router, prefix="/open/v1")
