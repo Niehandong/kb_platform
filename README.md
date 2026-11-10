@@ -21,19 +21,11 @@ docker compose up -d      # 首次会构建镜像，需要几分钟
 
 **数据位置**：数据库、原始文件、向量数据、日志、密钥都在 `deploy/volumes/` 下。备份和迁移时整个目录一起处理。
 
-### MinIO 镜像需要手工导入
+### 关于镜像
 
-MinIO 的镜像已从公共镜像仓库下架，新服务器上 `docker compose up` 拉不到它。部署前先从已有这个镜像的机器导出，再到新服务器导入：
+所有镜像都从公共镜像仓库拉取，不需要手工准备。其中 MinIO 用的是 Milvus 官方托管的 `milvusdb/minio`（MinIO 自己的 `minio/minio` 已从公共仓库下架），与 Milvus 2.6 官方部署文件中引用的版本一致。
 
-```bash
-# 在已有镜像的机器上
-docker save minio/minio:RELEASE.2025-09-07T16-13-09Z | gzip > minio.tar.gz
-
-# 把 minio.tar.gz 拷到新服务器，然后
-gunzip -c minio.tar.gz | docker load
-```
-
-公司有内部镜像仓库时，也可以把镜像推上去，然后在 `deploy/.env` 里设置 `MINIO_IMAGE`。
+服务器不能访问公共镜像仓库时，在 `deploy/.env` 里把各组件的镜像地址改成内部仓库的地址；或者在能联网的机器上用 `docker save` 导出、到服务器上用 `docker load` 导入。
 
 ### 常用操作
 

@@ -137,8 +137,9 @@ services:
 
   minio:
     profiles: ["minio"]
-    # 这个镜像已从公共镜像仓库下架，新服务器上需要先手工导入，见 README
-    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2025-09-07T16-13-09Z}
+    # MinIO 官方的 minio/minio 镜像已从公共仓库下架。这里用的是 Milvus 官方托管的版本，
+    # 与 Milvus 2.6 官方部署文件中引用的一致。
+    image: ${MINIO_IMAGE:-milvusdb/minio:RELEASE.2024-12-18T13-15-44Z}
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
