@@ -34,6 +34,7 @@ class KbOut(BaseModel):
     chunk_config: dict[str, Any]
     my_level: Level = Field(description="当前账号在这个知识库上的权限档位")
     document_count: int
+    rebuild_error: str | None = Field(description="最近一次重建索引失败的原因")
     needs_rebuild: bool = Field(description="建库时的向量模型与当前配置不一致，需要重建索引后才能检索")
     created_at: datetime
 

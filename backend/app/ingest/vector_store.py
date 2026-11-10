@@ -2,9 +2,12 @@
 
 每条切片存两份文字：
 - content：切片原文，原样返回给调用方。
-- search_text：用于关键字检索的文字 = 文档名 + 章节标题路径 + 原文，并把型号里的
-  连字符、斜杠、下划线换成空格。这样「YDFLP-20-M8」会被分成 ydflp、20、m8 三个词，
-  只输入型号的一部分也能命中；查询文本做同样的处理。
+- search_text：用于关键字检索的词，由 tokenize_for_search 生成，词之间用空格分开。
+  内容 = 文档名 + 章节标题路径 + 原文。
+
+关键字检索的切词由平台自己完成，不使用 jieba 这类词典分词器。原因是词典分词器会按
+上下文猜词：「卡料」单独出现时是一个词，在「中转台卡料」里却被切成「台卡」「料」，
+于是搜「卡料」找不到这句话。行业术语大多不在词典里，这种情况很常见。
 """
 
 import re
@@ -16,13 +19,15 @@ from pymilvus import DataType, Function, FunctionType
 from app.common.clients import get_milvus
 
 CONTENT_MAX_BYTES = 16384
-SEARCH_TEXT_MAX_BYTES = 24000
+SEARCH_TEXT_MAX_BYTES = 60000
 CONTEXT_MAX_CHARS = 300
 _INSERT_BATCH = 200
 
-# jieba 分词，统一小写，丢弃标点等非中文、字母、数字的词
-ANALYZER_PARAMS = {"tokenizer": "jieba", "filter": ["lowercase", "cnalphanumonly"]}
-_MODEL_JOINER = re.compile(r"(?<=[A-Za-z0-9])[-/_](?=[A-Za-z0-9])")
+# 切词已在平台内完成，Milvus 只需按空格分开
+ANALYZER_PARAMS = {"tokenizer": "whitespace"}
+_CJK = "\u3400-\u4dbf\u4e00-\u9fff"
+# 一段连续的汉字，或一段字母数字（数字中间的小数点保留，如 2.14.11、0.5）
+_SEGMENT = re.compile(rf"[{_CJK}]+|[a-z0-9]+(?:\.[0-9][a-z0-9]*)*")
 
 OUTPUT_FIELDS = ["chunk_id", "doc_id", "seq", "content", "metadata"]
 
@@ -31,9 +36,26 @@ def collection_name(kb_id: str) -> str:
     return f"kb_{kb_id}"
 
 
-def normalize_for_search(text: str) -> str:
-    """关键字检索前对文字的处理，入库和查询必须一致。"""
-    return _MODEL_JOINER.sub(" ", text)
+def search_tokens(text: str) -> list[str]:
+    """把文字切成关键字检索用的词。入库和查询用同一个函数，结果与上下文无关。
+
+    - 汉字：每相邻两个字为一个词。「中转台卡料」→ 中转、转台、台卡、卡料。
+      单独一个汉字时就是它自己。
+    - 字母数字：统一小写，按符号断开。「YDFLP-20-M8」→ ydflp、20、m8；「200W」→ 200w。
+    """
+    tokens: list[str] = []
+    for segment in _SEGMENT.findall(text.lower()):
+        if segment[0].isascii():
+            tokens.append(segment)
+        elif len(segment) == 1:
+            tokens.append(segment)
+        else:
+            tokens.extend(segment[i : i + 2] for i in range(len(segment) - 1))
+    return tokens
+
+
+def tokenize_for_search(text: str) -> str:
+    return " ".join(search_tokens(text))
 
 
 def context_prefix(doc_name: str, heading_path: str | None) -> str:
@@ -93,7 +115,9 @@ def create_collection(name: str, dim: int) -> None:
         params={"inverted_index_algo": "DAAT_MAXSCORE", "bm25_k1": 1.2, "bm25_b": 0.75},
     )
     index_params.add_index("doc_id", index_type="INVERTED")
-    client.create_collection(name, schema=schema, index_params=index_params)
+    # 强一致读取：入库、删除、停用之后的下一次检索立刻生效。
+    # 默认的一致性级别允许短暂读到旧数据，停用的内容可能在几秒内仍被搜到。
+    client.create_collection(name, schema=schema, index_params=index_params, consistency_level="Strong")
     client.load_collection(name)
 
 
@@ -114,7 +138,7 @@ def build_row(
     enabled: bool,
     vector: list[float],
 ) -> dict[str, Any]:
-    search_text = normalize_for_search(embedding_text(doc_name, metadata.get("heading_path"), content))
+    search_text = tokenize_for_search(embedding_text(doc_name, metadata.get("heading_path"), content))
     return {
         "chunk_id": chunk_id,
         "doc_id": doc_id,
@@ -128,8 +152,11 @@ def build_row(
 
 
 def _fit_bytes(text: str, limit: int) -> str:
+    """超过字段长度时从末尾丢弃整个词。4000 字的切片约 3 万字节，正常不会触发。"""
     data = text.encode("utf-8")
-    return text if len(data) <= limit else data[:limit].decode("utf-8", errors="ignore")
+    if len(data) <= limit:
+        return text
+    return data[:limit].decode("utf-8", errors="ignore").rsplit(" ", 1)[0]
 
 
 def insert_rows(name: str, rows: list[dict[str, Any]]) -> None:

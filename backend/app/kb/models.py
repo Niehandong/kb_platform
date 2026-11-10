@@ -34,6 +34,7 @@ class KnowledgeBase(Base, TimestampMixin):
         default=KB_ACTIVE,
         comment="状态：active 正常，rebuilding 正在重建索引，deleting 正在删除",
     )
+    rebuild_error: Mapped[str | None] = mapped_column(Text, comment="最近一次重建索引失败的原因；成功后清空")
     created_by: Mapped[str] = mapped_column(String(32), comment="创建者账号")
 
 

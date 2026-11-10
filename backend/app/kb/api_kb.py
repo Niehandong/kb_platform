@@ -24,7 +24,7 @@ from app.common.db import new_id
 from app.common.errors import AppError
 from app.config import get_settings
 from app.ingest import tasks, vector_store
-from app.kb.models import KB_ACTIVE, KB_DELETING, Document, KnowledgeBase
+from app.kb.models import KB_ACTIVE, KB_DELETING, KB_REBUILDING, Document, KnowledgeBase
 from app.kb.schemas import GrantIn, GrantOut, KbCreateIn, KbOut, KbUpdateIn
 
 logger = logging.getLogger(__name__)
@@ -51,6 +51,7 @@ def _out(kb: KnowledgeBase, level: str, document_count: int) -> KbOut:
         chunk_config=kb.chunk_config,
         my_level=level,  # type: ignore[arg-type]
         document_count=document_count,
+        rebuild_error=kb.rebuild_error,
         needs_rebuild=kb.embedding_model != get_settings().EMBEDDING_MODEL
         or kb.embedding_dim != get_settings().EMBEDDING_DIM,
         created_at=kb.created_at,
@@ -169,6 +170,27 @@ def delete_kb(kb_id: str, account: CurrentAccount, db: Db) -> dict:
     db.commit()
     enqueue(tasks.delete_knowledge_base, kb.id)
     return {"deleted_documents": documents}
+
+
+@router.post(
+    "/knowledge-bases/{kb_id}/rebuild",
+    response_model=KbOut,
+    summary="重建索引",
+    description="按数据库里的切片重新生成这个知识库在 Milvus 中的全部数据，并改用当前配置的向量模型。"
+    "重建期间这个知识库不能检索。上一次重建失败时可以再次发起。",
+)
+def rebuild_kb(kb_id: str, account: CurrentAccount, db: Db) -> KbOut:
+    kb, level = get_kb(db, account, kb_id, LEVEL_MANAGE)
+    if kb.status == KB_REBUILDING and kb.rebuild_error is None:
+        raise AppError(409, "INVALID_STATUS", "正在重建索引，请等待完成")
+    kb.status = KB_REBUILDING
+    kb.rebuild_error = None
+    log_operation(
+        db, account.id, "kb.rebuild", "knowledge_base", kb.id, kb_id=kb.id, detail={"name": kb.name}
+    )
+    db.commit()
+    enqueue(tasks.rebuild_knowledge_base, kb.id, timeout=6 * 3600)
+    return _out(kb, level, _document_count(db, kb.id))
 
 
 # ---------- 授权 ----------

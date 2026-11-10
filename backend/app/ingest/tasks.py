@@ -1,4 +1,4 @@
-"""文档处理的后台任务：解析与切分、向量化与入库、删除知识库。
+"""文档处理的后台任务：解析与切分、向量化与入库、重建索引、删除知识库。
 
 每个任务自己捕获异常并把失败原因写回文档，不依赖队列的失败记录。
 """
@@ -9,6 +9,7 @@ from sqlalchemy import delete, func, select, update
 
 from app.common.clients import enqueue
 from app.common.db import SessionLocal
+from app.config import get_settings
 from app.ingest import storage, vector_store
 from app.ingest.chunking import ChunkConfig, ChunkingError, chunk_document
 from app.ingest.embedding import EmbeddingError, embed_texts
@@ -19,8 +20,11 @@ from app.kb.models import (
     DOC_PARSING,
     DOC_PENDING_CONFIRM,
     DOC_READY,
+    KB_ACTIVE,
+    KB_REBUILDING,
     STAGE_EMBED,
     STAGE_PARSE,
+    SYNC_FAILED,
     SYNC_SYNCED,
     Chunk,
     Document,
@@ -183,3 +187,72 @@ def delete_knowledge_base(kb_id: str) -> None:
         db.delete(kb)  # 授权记录随知识库级联删除
         db.commit()
         logger.info("知识库 %s 已删除：文档 %s 个，文件 %s 个", kb_id, documents, removed_files)
+
+
+def rebuild_knowledge_base(kb_id: str) -> None:
+    """重建索引：按数据库里的切片重新生成整个 Milvus 集合。
+
+    用于更换向量模型、调整集合结构，或 Milvus 数据损坏之后的恢复。只处理已入库的版本，
+    正在准备中的新版本不受影响。
+    """
+    settings = get_settings()
+    with SessionLocal() as db:
+        kb = db.get(KnowledgeBase, kb_id)
+        if kb is None or kb.status != KB_REBUILDING:
+            logger.info("知识库 %s 不存在或不在重建状态，跳过", kb_id)
+            return
+        active = (
+            select(Chunk, Document.name, Document.enabled)
+            .join(Document, Document.id == Chunk.doc_id)
+            .where(Chunk.kb_id == kb_id, Chunk.generation == Document.generation)
+            .order_by(Chunk.doc_id, Chunk.seq)
+        )
+        rows = db.execute(active).all()
+        chunk_ids = [chunk.id for chunk, _, _ in rows]
+        try:
+            vector_store.drop_collection(kb.collection_name)
+            vector_store.create_collection(kb.collection_name, settings.EMBEDDING_DIM)
+            batch = 256
+            for start in range(0, len(rows), batch):
+                part = rows[start : start + batch]
+                vectors = embed_texts(
+                    [
+                        vector_store.embedding_text(name, c.meta.get("heading_path"), c.content)
+                        for c, name, _ in part
+                    ]
+                )
+                vector_store.insert_rows(
+                    kb.collection_name,
+                    [
+                        vector_store.build_row(
+                            chunk_id=c.id,
+                            doc_id=c.doc_id,
+                            seq=c.seq,
+                            content=c.content,
+                            doc_name=name,
+                            metadata=c.meta,
+                            enabled=c.enabled and doc_enabled,
+                            vector=vector,
+                        )
+                        for (c, name, doc_enabled), vector in zip(part, vectors, strict=True)
+                    ],
+                )
+        except Exception as exc:
+            # 集合可能只写了一部分。保持「重建中」状态，检索会被拒绝，避免返回残缺的结果；
+            # 重新发起重建即可。
+            logger.exception("知识库 %s 重建索引失败", kb_id)
+            if chunk_ids:
+                db.execute(update(Chunk).where(Chunk.id.in_(chunk_ids)).values(sync_status=SYNC_FAILED))
+            kb.rebuild_error = (
+                str(exc)[:2000] if isinstance(exc, EmbeddingError) else f"内部错误：{type(exc).__name__}"
+            )
+            db.commit()
+            return
+        if chunk_ids:
+            db.execute(update(Chunk).where(Chunk.id.in_(chunk_ids)).values(sync_status=SYNC_SYNCED))
+        kb.embedding_model = settings.EMBEDDING_MODEL
+        kb.embedding_dim = settings.EMBEDDING_DIM
+        kb.rebuild_error = None
+        kb.status = KB_ACTIVE
+        db.commit()
+        logger.info("知识库 %s 重建索引完成，切片 %s 个", kb_id, len(chunk_ids))
