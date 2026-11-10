@@ -4,3 +4,7 @@ src = ["backend"]
 
 [lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[lint.per-file-ignores]
+# 迁移脚本由工具生成，不检查导入顺序
+"backend/migrations/*" = ["I001"]

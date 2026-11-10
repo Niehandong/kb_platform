@@ -10,3 +10,7 @@ rq==3.0.0
 minio==7.2.20
 pymilvus==2.6.18
 httpx==0.28.1
+argon2-cffi==25.1.0
+PyJWT==2.15.1
+python-multipart==0.0.33
+openpyxl==3.1.5

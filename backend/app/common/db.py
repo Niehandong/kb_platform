@@ -1,9 +1,11 @@
 """数据库连接与模型基类。"""
 
 from collections.abc import Iterator
+from datetime import datetime
+from uuid import uuid4
 
-from sqlalchemy import MetaData, create_engine
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy import DateTime, MetaData, create_engine, func
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from app.config import get_settings
 
@@ -37,3 +39,19 @@ def get_db() -> Iterator[Session]:
         raise
     finally:
         session.close()
+
+
+def new_id() -> str:
+    """生成主键：32 位十六进制字符串。"""
+    return uuid4().hex
+
+
+class TimestampMixin:
+    """所有表共有的时间字段。"""
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), comment="创建时间"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment="最后修改时间"
+    )
