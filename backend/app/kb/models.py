@@ -76,6 +76,9 @@ class Document(Base, TimestampMixin):
     pending_storage_key: Mapped[str | None] = mapped_column(
         String(255), comment="替换过程中新文件在 MinIO 中的位置，替换完成后清空"
     )
+    pending_info: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB, comment="替换过程中新文件的文件名、类型、大小、内容哈希；替换完成后写入正式字段并清空"
+    )
     status: Mapped[str] = mapped_column(
         String(16),
         default=DOC_PARSING,

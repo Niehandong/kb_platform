@@ -63,7 +63,7 @@ def _parse_document(doc_id: str) -> None:
             logger.info("文档 %s 不存在或不在解析状态，跳过", doc_id)
             return
         data = storage.get_file(doc.pending_storage_key or doc.storage_key)
-        parsed = parse_file(doc.file_type, data)
+        parsed = parse_file((doc.pending_info or {}).get("file_type", doc.file_type), data)
         config = ChunkConfig.model_validate(
             {k: v for k, v in doc.chunk_config.items() if k != "effective_mode"}
         )
@@ -115,6 +115,8 @@ def _embed_document(doc_id: str) -> None:
         kb = db.get(KnowledgeBase, doc.kb_id)
         assert kb is not None
         target = doc.generation + 1
+        # 替换文档时，新版本用新文件名作为上下文
+        doc_name = (doc.pending_info or {}).get("name", doc.name)
         chunks = list(
             db.scalars(
                 select(Chunk).where(Chunk.doc_id == doc.id, Chunk.generation == target).order_by(Chunk.seq)
@@ -124,7 +126,7 @@ def _embed_document(doc_id: str) -> None:
             raise EmbeddingError("没有可入库的切片，请重新切分")
 
         vectors = embed_texts(
-            [vector_store.embedding_text(doc.name, c.meta.get("heading_path"), c.content) for c in chunks]
+            [vector_store.embedding_text(doc_name, c.meta.get("heading_path"), c.content) for c in chunks]
         )
         rows = [
             vector_store.build_row(
@@ -132,7 +134,7 @@ def _embed_document(doc_id: str) -> None:
                 doc_id=doc.id,
                 seq=c.seq,
                 content=c.content,
-                doc_name=doc.name,
+                doc_name=doc_name,
                 metadata=c.meta,
                 enabled=c.enabled and doc.enabled,
                 vector=vector,
@@ -159,6 +161,10 @@ def _embed_document(doc_id: str) -> None:
         old_key = doc.storage_key if doc.pending_storage_key else None
         if doc.pending_storage_key:
             doc.storage_key, doc.pending_storage_key = doc.pending_storage_key, None
+        if doc.pending_info:
+            for field in ("name", "file_type", "file_size", "sha256"):
+                setattr(doc, field, doc.pending_info[field])
+            doc.pending_info = None
         doc.generation = target
         doc.chunk_count = len(chunks)
         doc.status = DOC_READY

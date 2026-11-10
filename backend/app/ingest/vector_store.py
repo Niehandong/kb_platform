@@ -165,6 +165,24 @@ def insert_rows(name: str, rows: list[dict[str, Any]]) -> None:
         client.insert(name, rows[start : start + _INSERT_BATCH])
 
 
+def upsert_rows(name: str, rows: list[dict[str, Any]]) -> None:
+    """整行覆盖：用于切片正文被修改之后。"""
+    client = get_milvus()
+    for start in range(0, len(rows), _INSERT_BATCH):
+        client.upsert(name, rows[start : start + _INSERT_BATCH])
+
+
+def update_fields(name: str, rows: list[dict[str, Any]]) -> None:
+    """只更新给出的字段（每行必须带 chunk_id），其余字段和向量保持不变。
+
+    用于停用启用、调整序号、修改标签，不需要重新向量化。已在 Milvus 2.6.27 上验证：
+    带关键字检索函数的集合支持这种更新，更新后关键字检索正常。
+    """
+    client = get_milvus()
+    for start in range(0, len(rows), 500):
+        client.upsert(name, rows[start : start + 500], partial_update=True)
+
+
 def delete_chunks(name: str, chunk_ids: list[str]) -> None:
     client = get_milvus()
     for start in range(0, len(chunk_ids), 500):

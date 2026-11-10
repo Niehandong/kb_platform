@@ -68,6 +68,8 @@ class DocumentOut(BaseModel):
     auto_confirm: bool
     enabled: bool
     searchable: bool = Field(description="当前是否有已入库的版本可被检索")
+    replacing: bool = Field(description="已有入库的版本，同时正在准备新版本（替换文件或重新切分）")
+    edited_chunks: int = Field(description="已入库版本中手工修改或手工新增的切片数；替换或重新切分会丢失它们")
     chunk_config: dict[str, Any]
     chunk_count: int
     tags: dict[str, Any]
@@ -102,3 +104,21 @@ class ChunkPage(BaseModel):
 
 class RechunkIn(BaseModel):
     chunk_config: ChunkConfig
+    discard_edits: bool = Field(default=False, description="确认丢弃已入库版本中手工修改过的切片")
+
+
+class DocumentUpdateIn(BaseModel):
+    enabled: bool | None = Field(default=None, description="停用后文档的切片不参与检索，但不删除")
+    tags: dict[str, str] | None = Field(default=None, description="整体替换文档的自定义标签")
+
+
+class ChunkUpdateIn(BaseModel):
+    content: str | None = Field(default=None, min_length=1, max_length=4000)
+    enabled: bool | None = None
+
+
+class ChunkCreateIn(BaseModel):
+    content: str = Field(min_length=1, max_length=4000)
+    position: int | None = Field(
+        default=None, ge=0, description="插入到这个序号的位置，其后的切片顺延；不填则加在最后"
+    )

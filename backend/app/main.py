@@ -6,13 +6,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.audit import api as audit_api
 from app.auth import api_accounts, api_auth, api_groups, api_open
 from app.auth.bootstrap import ensure_initial_admin
 from app.common import clients, health
 from app.common.errors import register_error_handlers
 from app.common.logging import setup_logging
 from app.config import get_settings
-from app.kb import api_documents, api_kb
+from app.kb import api_chunks, api_documents, api_kb
 from app.retrieval import api as retrieval_api
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,8 @@ app.include_router(api_accounts.router, prefix="/api/v1")
 app.include_router(api_groups.router, prefix="/api/v1")
 app.include_router(api_kb.router, prefix="/api/v1")
 app.include_router(api_documents.router, prefix="/api/v1")
+app.include_router(api_chunks.router, prefix="/api/v1")
+app.include_router(audit_api.router, prefix="/api/v1")
 app.include_router(retrieval_api.console_router, prefix="/api/v1")
 app.include_router(api_open.router, prefix="/open/v1")
 app.include_router(retrieval_api.open_router, prefix="/open/v1")
