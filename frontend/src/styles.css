@@ -1,0 +1,324 @@
+:root {
+  --ink: #16242b;
+  --ink-soft: #5b6b73;
+  --line: #dde3e6;
+  --surface: #f3f5f6;
+  --accent: #13697d;
+  --accent-wash: #e6f1f3;
+  --warn: #b4630b;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--surface);
+  color: var(--ink);
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", system-ui, sans-serif;
+}
+
+.app-brand {
+  padding: 18px 20px 14px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+}
+
+.app-brand small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--ink-soft);
+}
+
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px 28px 48px;
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.page-head h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.page-head p {
+  margin: 6px 0 0;
+  max-width: 62ch;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.muted {
+  color: var(--ink-soft);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 登录页：左侧是一把刻度尺，呼应「切片」 */
+.login {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  min-height: 100vh;
+  background: #fff;
+}
+
+.login-side {
+  position: relative;
+  overflow: hidden;
+  padding: 64px 56px;
+  background: var(--ink);
+  color: #e9eef0;
+}
+
+.login-side h1 {
+  margin: 0 0 14px;
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.login-side p {
+  max-width: 30em;
+  margin: 0;
+  line-height: 1.9;
+  color: #a9b8be;
+}
+
+.login-ruler {
+  position: absolute;
+  left: 56px;
+  right: 0;
+  bottom: 72px;
+  height: 120px;
+  background:
+    repeating-linear-gradient(90deg, #4f6b76 0 1px, transparent 1px 12px) bottom / 100% 14px no-repeat,
+    repeating-linear-gradient(90deg, #8fb3bf 0 1px, transparent 1px 120px) bottom / 100% 40px no-repeat;
+  border-bottom: 1px solid #8fb3bf;
+}
+
+.login-ruler span {
+  position: absolute;
+  bottom: 48px;
+  font-size: 12px;
+  color: #8fb3bf;
+  font-variant-numeric: tabular-nums;
+  transform: translateX(4px);
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 48px;
+}
+
+.login-form h2 {
+  margin: 0 0 24px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+@media (max-width: 860px) {
+  .login {
+    grid-template-columns: 1fr;
+  }
+  .login-side {
+    display: none;
+  }
+  .page {
+    padding: 16px;
+  }
+}
+
+/* 知识库卡片 */
+.kb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.kb-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 150px;
+  padding: 18px 20px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+
+.kb-card:hover,
+.kb-card:focus-visible {
+  border-color: var(--accent);
+  color: inherit;
+}
+
+.kb-card h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.kb-card p {
+  flex: 1;
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.kb-card footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+/* 切片列表：左边一条刻度，标出每一片的序号 */
+.chunk-list {
+  border-left: 1px solid var(--line);
+  margin-left: 26px;
+}
+
+.chunk {
+  position: relative;
+  padding: 0 0 18px 28px;
+}
+
+.chunk::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 12px;
+  width: 14px;
+  border-top: 1px solid var(--accent);
+}
+
+.chunk-seq {
+  position: absolute;
+  left: -58px;
+  top: 2px;
+  width: 44px;
+  text-align: right;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.chunk-body {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.chunk.is-disabled .chunk-body {
+  background: #fafafa;
+  color: #9aa5aa;
+}
+
+.chunk.is-disabled::before {
+  border-top-color: #b9c2c6;
+}
+
+.chunk-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.chunk-meta .grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.chunk-text {
+  margin: 0;
+  padding: 12px 14px;
+  font: inherit;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chunk-insert {
+  padding: 0 0 18px 28px;
+}
+
+/* 召回结果 */
+.hit {
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.hit + .hit {
+  margin-top: 10px;
+}
+
+.hit-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.hit-rank {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.hit-score {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.key-once {
+  padding: 12px 14px;
+  background: var(--accent-wash);
+  border: 1px solid #b7d5db;
+  border-radius: 4px;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 14px;
+  word-break: break-all;
+}

@@ -36,6 +36,17 @@ cd ../backend && cp .env.example .env      # 密码与 deploy/.env 保持一致
 | `./manage.sh start\|stop\|restart\|status [api\|worker]` | 启停进程，不写进程名表示两个都操作 |
 | `./manage.sh migrate` | 执行数据库迁移 |
 
+管理界面（开发时）：
+
+```bash
+cd frontend
+npm install                      # 只需一次
+npm run dev                      # 只在本机访问：http://127.0.0.1:8220
+KB_WEB_HOST=0.0.0.0 npm run dev  # 允许局域网内其他电脑访问
+```
+
+开发服务器会把 `/api` 和 `/open` 的请求转给本机 8210 端口的接口进程。
+
 健康检查：`curl http://127.0.0.1:8210/api/v1/health`　接口文档：`http://127.0.0.1:8210/api/v1/docs`
 
 日志在 `backend/logs/api/app.log` 和 `backend/logs/worker/app.log`。
