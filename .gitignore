@@ -1,0 +1,24 @@
+# 环境与配置
+.venv/
+.env
+!.env.example
+
+# 运行产物
+__pycache__/
+*.pyc
+logs/
+run/
+deploy/volumes/
+
+# 测试、评测脚本、测试数据不进仓库
+tests/
+data/
+
+# 前端
+node_modules/
+dist/
+
+# 工具缓存
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/

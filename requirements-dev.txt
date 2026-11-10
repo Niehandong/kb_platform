@@ -1,0 +1,5 @@
+# 检查与测试用依赖。安装：.venv/bin/pip install -r requirements-dev.txt
+-r requirements.txt
+ruff
+mypy
+pytest
